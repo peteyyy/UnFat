@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "278570672738",
+    "project_id": "unfat-app-2f678",
+    "storage_bucket": "unfat-app-2f678.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278570672738:android:d381fdf3b8a2832725e73b",
+        "android_client_info": {
+          "package_name": "com.example.unfat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZclQrdGtknu4fUCloyWBIul0ZJeyTNTQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278570672738:android:a65bed55ddd2a95125e73b",
+        "android_client_info": {
+          "package_name": "om.example.unfat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZclQrdGtknu4fUCloyWBIul0ZJeyTNTQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
