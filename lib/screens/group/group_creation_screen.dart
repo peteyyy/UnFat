@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart'; // Import Realtime Database package
 
 class GroupCreationScreen extends StatefulWidget {
   const GroupCreationScreen({Key? key}) : super(key: key);
@@ -12,6 +12,9 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
 
+  // Reference to the Realtime Database
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref('groups');
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -19,24 +22,45 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
   }
 
   Future<void> _createGroup() async {
+    print("Create group initiated");
     if (_formKey.currentState!.validate()) {
       try {
-        await FirebaseFirestore.instance.collection('groups').add({
+        print("Form validated. Adding group to Realtime Database...");
+
+        // Add the group to the Realtime Database
+        await _databaseRef.push().set({
           'name': _nameController.text,
-          'createdAt': Timestamp.now(), // Add a timestamp for when the group is created
+          'createdAt': DateTime.now().toIso8601String(),
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Group created successfully!')),
-        );
+        print("Group successfully added to Realtime Database");
 
-        // Navigate back to the previous screen after creation
-        Navigator.pop(context);
+        if (mounted) {
+          // Clear the input field
+          print("Widget is mounted. Clearing input field...");
+          _nameController.clear();
+          print("Input field cleared");
+
+          // Show the SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Group created successfully!')),
+          );
+
+          print("Navigating back to GroupScreen...");
+          Navigator.pop(context);
+        } else {
+          print("Widget is no longer mounted. Skipping further actions.");
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating group: $e')),
-        );
+        print("Error occurred: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error creating group: $e')),
+          );
+        }
       }
+    } else {
+      print("Form validation failed");
     }
   }
 
