@@ -26,5 +26,7 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:278570672738:ios:faeb867a6275f38725e73b</string>
+	<key>DATABASE_URL</key>
+	<string>https://unfat-app-2f678-default-rtdb.firebaseio.com/</string>
 </dict>
 </plist>

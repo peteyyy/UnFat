@@ -1,21 +1,22 @@
 class Group {
   final String id;
   final String name;
+  final String admin;
 
-  Group({required this.id, required this.name});
+  Group({required this.id, required this.name, required this.admin});
 
-  // Convert Firestore document to Group model
-  factory Group.fromFirestore(Map<String, dynamic> data, String id) {
+  factory Group.fromRealtime(String id, Map<dynamic, dynamic> data) {
     return Group(
       id: id,
-      name: data['name'],
+      name: data['name'] ?? 'Unnamed Group',
+      admin: data['admin'] ?? 'Unknown Admin',
     );
   }
 
-  // Convert Group model to Firestore document
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toRealtime() {
     return {
       'name': name,
+      'admin': admin,
     };
   }
 }

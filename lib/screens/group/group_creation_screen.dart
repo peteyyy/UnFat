@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart'; // Import Realtime Database package
+import 'package:firebase_auth/firebase_auth.dart'; // Import for user authentication
+import 'package:firebase_database/firebase_database.dart';
 
 class GroupCreationScreen extends StatefulWidget {
   const GroupCreationScreen({Key? key}) : super(key: key);
@@ -13,7 +14,8 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
   final _nameController = TextEditingController();
 
   // Reference to the Realtime Database
-  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref('groups');
+  final DatabaseReference _databaseRef =
+      FirebaseDatabase.instance.ref('groups');
 
   @override
   void dispose() {
@@ -23,6 +25,15 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
 
   Future<void> _createGroup() async {
     print("Create group initiated");
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You must be signed in to create a group!')),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       try {
         print("Form validated. Adding group to Realtime Database...");
@@ -30,6 +41,7 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
         // Add the group to the Realtime Database
         await _databaseRef.push().set({
           'name': _nameController.text,
+          'admin': currentUser.uid, // Add the admin field
           'createdAt': DateTime.now().toIso8601String(),
         });
 
@@ -37,19 +49,15 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
 
         if (mounted) {
           // Clear the input field
-          print("Widget is mounted. Clearing input field...");
           _nameController.clear();
-          print("Input field cleared");
 
           // Show the SnackBar
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Group created successfully!')),
           );
 
-          print("Navigating back to GroupScreen...");
+          // Navigate back to GroupScreen
           Navigator.pop(context);
-        } else {
-          print("Widget is no longer mounted. Skipping further actions.");
         }
       } catch (e) {
         print("Error occurred: $e");
