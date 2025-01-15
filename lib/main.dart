@@ -6,8 +6,10 @@ import 'package:firebase_ui_auth/firebase_ui_auth.dart' as firebase_ui_auth;
 import 'screens/home_screen.dart';
 import 'screens/user/user_create_screen.dart';
 import 'screens/group/group_screen.dart';
-import 'screens/group/group_creation_screen.dart';
+import 'screens/group/group_create_screen.dart';
+import 'screens/group/group_show_screen.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'screens/user_notification/user_notification_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +36,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const MyHomePage(title: 'UnFat'),
         '/user_create': (context) => const UserCreateScreen(),
         '/group_screen': (context) => const GroupScreen(),
-        '/group_create': (context) => const GroupCreationScreen(),
+        '/group_create': (context) => const GroupCreateScreen(),
+        '/group_show': (context) => const GroupShowScreen(),
       },
     );
   }

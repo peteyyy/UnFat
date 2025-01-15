@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import for user authentication
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../../models/user_notification.dart';
 
-class GroupCreationScreen extends StatefulWidget {
-  const GroupCreationScreen({Key? key}) : super(key: key);
+class GroupCreateScreen extends StatefulWidget {
+  const GroupCreateScreen({Key? key}) : super(key: key);
 
   @override
-  State<GroupCreationScreen> createState() => _GroupCreationScreenState();
+  State<GroupCreateScreen> createState() => _GroupCreateScreenState();
 }
 
-class _GroupCreationScreenState extends State<GroupCreationScreen> {
+class _GroupCreateScreenState extends State<GroupCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
 
@@ -38,14 +39,23 @@ class _GroupCreationScreenState extends State<GroupCreationScreen> {
       try {
         print("Form validated. Adding group to Realtime Database...");
 
+        // Generate a unique key for the new group
+        final groupKey = _databaseRef.push().key;
+
         // Add the group to the Realtime Database
-        await _databaseRef.push().set({
+        await _databaseRef.child(groupKey!).set({
           'name': _nameController.text,
           'admin': currentUser.uid, // Add the admin field
           'createdAt': DateTime.now().toIso8601String(),
         });
 
         print("Group successfully added to Realtime Database");
+
+        // Create a notification for the user who created the group
+        final message = "You created a new group: ${_nameController.text}";
+        await UserNotification.createUserNotification(currentUser.uid, message);
+
+        print("Notification created for admin");
 
         if (mounted) {
           // Clear the input field

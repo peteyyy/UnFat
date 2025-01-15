@@ -14,12 +14,13 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
-  // Define the pages for each tab, including the GroupScreen
+  // Define the pages for each tab, including the GroupScreen and Notifications tab
   static final List<Widget> _pages = <Widget>[
     const Center(child: Text('Leaderboard Page')),
     const Center(child: Text('Camera Page')),
     const Center(child: Text('Settings Page')),
     const GroupScreen(), // Link to the GroupScreen
+    const Center(child: Text('Notifications Page')), // New Notifications tab
   ];
 
   void _onItemTapped(int index) {
@@ -62,6 +63,10 @@ class _MyHomePageState extends State<MyHomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.groups),
             label: 'Groups',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notifications', // New Notifications tab
           ),
         ],
         currentIndex: _selectedIndex,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../../models/group.dart';
 import '../../models/user.dart';
-import 'group_creation_screen.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({Key? key}) : super(key: key);
@@ -54,7 +53,14 @@ class _GroupScreenState extends State<GroupScreen> {
                     title: Text(group.name),
                     subtitle: Text('Admin: $adminUsername'), // Display username
                     onTap: () {
-                      // Handle group click
+                      Navigator.pushNamed(
+                        context,
+                        '/group_show',
+                        arguments: {
+                          'groupId': group.id,
+                          'adminUid': group.admin
+                        },
+                      );
                     },
                   );
                 },
@@ -65,12 +71,7 @@ class _GroupScreenState extends State<GroupScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const GroupCreationScreen(),
-            ),
-          );
+          Navigator.pushNamed(context, '/group_create');
         },
         child: const Icon(Icons.add),
         tooltip: 'Create Group',
