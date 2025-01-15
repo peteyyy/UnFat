@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../../models/group.dart';
+import '../../models/user.dart';
 import 'group_creation_screen.dart';
 
 class GroupScreen extends StatefulWidget {
@@ -41,11 +42,21 @@ class _GroupScreenState extends State<GroupScreen> {
             itemCount: groups.length,
             itemBuilder: (context, index) {
               final group = groups[index];
-              return ListTile(
-                title: Text(group.name),
-                subtitle: Text('Admin: ${group.admin}'), // Display admin
-                onTap: () {
-                  // Handle group click
+              return FutureBuilder<String>(
+                future: User.getUsername(group.admin),
+                builder: (context, snapshot) {
+                  final adminUsername =
+                      snapshot.connectionState == ConnectionState.done
+                          ? snapshot.data ?? 'Unknown'
+                          : 'Loading...';
+
+                  return ListTile(
+                    title: Text(group.name),
+                    subtitle: Text('Admin: $adminUsername'), // Display username
+                    onTap: () {
+                      // Handle group click
+                    },
+                  );
                 },
               );
             },
