@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:firebase_database/firebase_database.dart';
 import 'group/group_screen.dart';
+import '../models/user_notification.dart'; // Import UserNotification model
+import 'user_notification/user_notification_screen.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -14,13 +17,13 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
-  // Define the pages for each tab, including the GroupScreen and Notifications tab
+  // Define the pages for each tab
   static final List<Widget> _pages = <Widget>[
     const Center(child: Text('Leaderboard Page')),
     const Center(child: Text('Camera Page')),
     const Center(child: Text('Settings Page')),
     const GroupScreen(), // Link to the GroupScreen
-    const Center(child: Text('Notifications Page')), // New Notifications tab
+    const UserNotificationScreen(), // Notifications Screen
   ];
 
   void _onItemTapped(int index) {
@@ -47,26 +50,60 @@ class _MyHomePageState extends State<MyHomePage> {
       body: _pages[_selectedIndex], // Display the selected page
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
             label: 'Fattys',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),
             label: 'Check In',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.groups),
             label: 'Groups',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications', // New Notifications tab
+            icon: StreamBuilder<int>(
+              stream: UserNotification.getUnreadNotificationsCount(),
+              builder: (context, snapshot) {
+                final unreadCount = snapshot.data ?? 0;
+
+                return Stack(
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            label: 'Notifications',
           ),
         ],
         currentIndex: _selectedIndex,
