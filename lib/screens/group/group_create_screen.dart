@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebaseAuth; // Alias for Firebase Auth
 import 'package:firebase_database/firebase_database.dart';
+import '../../models/user.dart'; // Your custom User model
 import '../../models/user_notification.dart';
 
 class GroupCreateScreen extends StatefulWidget {
@@ -24,63 +25,79 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     super.dispose();
   }
 
-  Future<void> _createGroup() async {
-    print("Create group initiated");
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You must be signed in to create a group!')),
-      );
-      return;
-    }
+Future<void> _createGroup() async {
+  print("Create group initiated");
+  final currentUser = firebaseAuth.FirebaseAuth.instance.currentUser;
 
-    if (_formKey.currentState!.validate()) {
-      try {
-        print("Form validated. Adding group to Realtime Database...");
-
-        // Generate a unique key for the new group
-        final groupKey = _databaseRef.push().key;
-
-        // Add the group to the Realtime Database
-        await _databaseRef.child(groupKey!).set({
-          'name': _nameController.text,
-          'admin': currentUser.uid, // Add the admin field
-          'createdAt': DateTime.now().toIso8601String(),
-        });
-
-        print("Group successfully added to Realtime Database");
-
-        // Create a notification for the user who created the group
-        final message = "You created a new group: ${_nameController.text}";
-        await UserNotification.createUserNotification(currentUser.uid, message);
-
-        print("Notification created for admin");
-
-        if (mounted) {
-          // Clear the input field
-          _nameController.clear();
-
-          // Show the SnackBar
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Group created successfully!')),
-          );
-
-          // Navigate back to GroupScreen
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        print("Error occurred: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating group: $e')),
-          );
-        }
-      }
-    } else {
-      print("Form validation failed");
-    }
+  if (currentUser == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You must be signed in to create a group!'),
+      ),
+    );
+    return;
   }
+
+  if (_formKey.currentState!.validate()) {
+    try {
+      print("Form validated. Adding group to Realtime Database...");
+
+      // Generate a unique key for the new group
+      final groupKey = _databaseRef.push().key;
+
+      if (groupKey == null) {
+        throw Exception("Failed to generate group key");
+      }
+
+      // Add the group to the Realtime Database
+      await _databaseRef.child(groupKey).set({
+        'name': _nameController.text.trim(),
+        'admin': currentUser.uid,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+
+      print("Group successfully added to Realtime Database with ID: $groupKey");
+
+      // Print before calling joinGroup
+      print("Calling joinGroup for user ${currentUser.uid}");
+
+      // Call joinGroup to add the current user to the group
+      await User.fromId(currentUser.uid).joinGroup(groupKey);
+
+
+      print("User ${currentUser.uid} successfully joined group $groupKey");
+
+      // Create a notification for the user who created the group
+      final message = "You created a new group: ${_nameController.text.trim()}";
+      await UserNotification.createUserNotification(currentUser.uid, message);
+
+      print("Notification created for admin");
+
+      if (mounted) {
+        // Clear the input field
+        _nameController.clear();
+
+        // Show the SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Group created successfully!')),
+        );
+
+        // Navigate back to GroupScreen
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating group: $e')),
+        );
+      }
+    }
+  } else {
+    print("Form validation failed");
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
