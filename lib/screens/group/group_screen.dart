@@ -13,7 +13,7 @@ class GroupScreen extends StatefulWidget {
 
 class _GroupScreenState extends State<GroupScreen> {
   final auth.FirebaseAuth _auth = auth.FirebaseAuth.instance;
-  final DatabaseReference _userGroupsRef =
+  final DatabaseReference _userRef =
       FirebaseDatabase.instance.ref('users');
 
   @override
@@ -22,78 +22,76 @@ class _GroupScreenState extends State<GroupScreen> {
 
     if (currentUser == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Groups'),
-        ),
-        body: const Center(
-          child: Text('You must be signed in to view groups.'),
-        ),
+        appBar: AppBar(title: const Text('Groups')),
+        body: const Center(child: Text('You must be signed in to view groups.')),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Groups'),
-      ),
+      appBar: AppBar(title: const Text('Groups')),
       body: StreamBuilder<DatabaseEvent>(
-        stream: _userGroupsRef.child(currentUser.uid).child('groups').onValue,
+        stream: _userRef.child(currentUser.uid).onValue,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-            return const Center(
-              child: Text('You are not part of any groups.'),
-            );
+            return const Center(child: Text('No groups available.'));
           }
 
-          final Map<dynamic, dynamic> userGroupsMap =
-              snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
-          final groupIds = userGroupsMap.keys.toList();
+          final Map<dynamic, dynamic> userData =
+              snapshot.data!.snapshot.value as Map<dynamic, dynamic>? ?? {};
 
-          return FutureBuilder<List<Group>>(
-            future: _fetchGroups(groupIds),
+          final invitedGroupIds =
+              (userData['invited_groups'] as Map<dynamic, dynamic>?)
+                      ?.keys
+                      .toList() ??
+                  [];
+          final joinedGroupIds =
+              (userData['groups'] as Map<dynamic, dynamic>?)
+                      ?.keys
+                      .toList() ??
+                  [];
+
+          return FutureBuilder<Map<String, List<Group>>>(
+            future: _fetchGroups(invitedGroupIds, joinedGroupIds),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              if (!snapshot.hasData) {
                 return const Center(child: Text('No groups found.'));
               }
 
-              final groups = snapshot.data!;
+              final invitedGroups = snapshot.data!['invited']!;
+              final joinedGroups = snapshot.data!['joined']!;
 
-              return ListView.builder(
-                itemCount: groups.length,
-                itemBuilder: (context, index) {
-                  final group = groups[index];
-                  return FutureBuilder<String>(
-                    future: model.User.getUsername(group.admin),
-                    builder: (context, snapshot) {
-                      final adminUsername =
-                          snapshot.connectionState == ConnectionState.done
-                              ? snapshot.data ?? 'Unknown'
-                              : 'Loading...';
-
-                      return ListTile(
-                        title: Text(group.name),
-                        subtitle: Text('Admin: $adminUsername'),
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/group_show',
-                            arguments: {
-                              'groupId': group.id,
-                              'adminUid': group.admin,
-                            },
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
+              return ListView(
+                children: [
+                  if (invitedGroups.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        'Invited Groups',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...invitedGroups.map((group) => _buildGroupTile(group, true)),
+                    const Divider(),
+                  ],
+                  if (joinedGroups.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        'Groups',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...joinedGroups.map((group) => _buildGroupTile(group, false)),
+                  ],
+                ],
               );
             },
           );
@@ -109,15 +107,115 @@ class _GroupScreenState extends State<GroupScreen> {
     );
   }
 
-  Future<List<Group>> _fetchGroups(List<dynamic> groupIds) async {
-    final List<Group> groups = [];
-    for (var groupId in groupIds) {
+  Future<Map<String, List<Group>>> _fetchGroups(
+      List<dynamic> invitedIds, List<dynamic> joinedIds) async {
+    final List<Group> invitedGroups = [];
+    final List<Group> joinedGroups = [];
+
+    for (var groupId in invitedIds) {
       final snapshot =
           await FirebaseDatabase.instance.ref('groups/$groupId').get();
       if (snapshot.exists) {
-        groups.add(Group.fromRealtime(groupId, snapshot.value as Map));
+        invitedGroups.add(Group.fromRealtime(groupId, snapshot.value as Map));
       }
     }
-    return groups;
+
+    for (var groupId in joinedIds) {
+      final snapshot =
+          await FirebaseDatabase.instance.ref('groups/$groupId').get();
+      if (snapshot.exists) {
+        joinedGroups.add(Group.fromRealtime(groupId, snapshot.value as Map));
+      }
+    }
+
+    return {'invited': invitedGroups, 'joined': joinedGroups};
   }
+
+  Widget _buildGroupTile(Group group, bool isInvited) {
+    return FutureBuilder<String>(
+      future: model.User.getUsername(group.admin),
+      builder: (context, snapshot) {
+        final adminUsername = snapshot.connectionState == ConnectionState.done
+            ? snapshot.data ?? 'Unknown'
+            : 'Loading...';
+
+        return ListTile(
+          title: Text(group.name),
+          subtitle: Text('Admin: $adminUsername'),
+          trailing: isInvited
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check, color: Colors.green),
+                      onPressed: () => _acceptInvite(group.id),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () => _declineInvite(group.id),
+                    ),
+                  ],
+                )
+              : null,
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/group_show',
+              arguments: {
+                'groupId': group.id,
+                'adminUid': group.admin,
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _acceptInvite(String groupId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final userId = currentUser.uid;
+
+    final updates = {
+      'groups/$groupId/invitees/$userId': null, // Remove from invitees
+      'users/$userId/invited_groups/$groupId': null, // Remove from invited_groups
+      'groups/$groupId/members/$userId': true, // Add to members
+      'users/$userId/groups/$groupId': true, // Add to user's groups
+    };
+
+    await FirebaseDatabase.instance.ref().update(updates);
+
+    // Notify user
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('You have joined the group!')),
+    );
+
+    setState(() {}); // Refresh UI
+  }
+
+
+  Future<void> _declineInvite(String groupId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final userId = currentUser.uid;
+
+    final updates = {
+      'groups/$groupId/invitees/$userId': null, // Remove from invitees
+      'users/$userId/invited_groups/$groupId': null, // Remove from invited_groups
+    };
+
+    await FirebaseDatabase.instance.ref().update(updates);
+
+    // Notify user
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invitation declined.')),
+    );
+
+    setState(() {}); // Refresh UI
+  }
+
+
 }

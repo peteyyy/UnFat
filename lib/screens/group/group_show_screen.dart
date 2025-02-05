@@ -123,6 +123,7 @@ class GroupShowScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final arguments = ModalRoute.of(context)?.settings.arguments;
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
 
     if (arguments == null || arguments is! Map<String, String>) {
       return Scaffold(
@@ -251,44 +252,53 @@ class GroupShowScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                const Text(
-                  'Invitees:',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: invitees.length,
-                    itemBuilder: (context, index) {
-                      final inviteeId = invitees[index];
-                      return FutureBuilder<String>(
-                        future: _fetchUsername(inviteeId),
-                        builder: (context, snapshot) {
-                          final inviteeName = snapshot.connectionState ==
-                                  ConnectionState.done
-                              ? snapshot.data ?? 'Unknown User'
-                              : 'Loading...';
-
-                          return ListTile(
-                            title: Text(inviteeName),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () => _deleteGroup(context, groupId, adminUid),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                if (invitees.isNotEmpty) ...[
+                  const Text(
+                    'Invitees:',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
                     ),
-                    child: const Text('Delete Group'),
                   ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: invitees.length,
+                      itemBuilder: (context, index) {
+                        final inviteeId = invitees[index];
+                        return FutureBuilder<String>(
+                          future: _fetchUsername(inviteeId),
+                          builder: (context, snapshot) {
+                            final inviteeName = snapshot.connectionState ==
+                                    ConnectionState.done
+                                ? snapshot.data ?? 'Unknown User'
+                                : 'Loading...';
+
+                            return ListTile(
+                              title: Text(inviteeName),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                Center(
+                  child: currentUser != null && currentUser.uid == adminUid
+                      ? ElevatedButton(
+                          onPressed: () => _deleteGroup(context, groupId, adminUid),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text('Delete Group'),
+                        )
+                      : ElevatedButton(
+                          onPressed: () => _leaveGroup(context, groupId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                          ),
+                          child: const Text('Leave Group'),
+                        ),
                 ),
               ],
             ),
@@ -314,4 +324,30 @@ class GroupShowScreen extends StatelessWidget {
 
     return 'Unknown';
   }
+
+  Future<void> _leaveGroup(BuildContext context, String groupId) async {
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final userId = currentUser.uid;
+
+    try {
+      // Remove user from group's members list
+      await FirebaseDatabase.instance.ref('groups/$groupId/members/$userId').remove();
+
+      // Remove group from user's joined groups list
+      await FirebaseDatabase.instance.ref('users/$userId/groups/$groupId').remove();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have left the group.')),
+      );
+
+      Navigator.pop(context); // Return to previous screen
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error leaving group: $e')),
+      );
+    }
+}
+
 }
