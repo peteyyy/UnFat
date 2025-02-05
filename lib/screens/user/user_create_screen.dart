@@ -20,6 +20,8 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
   File? _avatarImage;
 
   final DatabaseReference _userRef = FirebaseDatabase.instance.ref('users');
+  final DatabaseReference _usernameRef =
+      FirebaseDatabase.instance.ref('usernames');
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
 
@@ -42,34 +44,65 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
 
   Future<void> _createUser() async {
     if (_formKey.currentState!.validate()) {
-      try {
-        print("Creating user...");
-        String? avatarUrl;
-        if (_avatarImage != null) {
-          final uid = _auth.currentUser?.uid ?? '';
-          final storageRef = _storage.ref().child('avatars/$uid');
-          await storageRef.putFile(_avatarImage!);
-          avatarUrl = await storageRef.getDownloadURL();
-          print("Avatar uploaded to: $avatarUrl");
-        }
+      final username = _usernameController.text.trim();
 
+      try {
+        print("Validating username...");
         final uid = _auth.currentUser?.uid ?? '';
-        await _userRef.child(uid).set({
-          'username': _usernameController.text,
-          'email': _auth.currentUser?.email ?? '',
-          'avatarUrl': avatarUrl ?? '',
+
+        // Use a transaction to ensure atomicity
+        final result = await FirebaseDatabase.instance
+            .ref('usernames')
+            .child(username)
+            .runTransaction((data) {
+          if (data != null) {
+            // Username already exists
+            return Transaction.abort();
+          }
+          // Username doesn't exist, allow the write
+          return Transaction.success(uid); // Wrap the value in Transaction.success
         });
 
-        print(
-            "User created successfully with username: ${_usernameController.text}");
-        Navigator.pushReplacementNamed(context, '/home');
+        if (result.committed) {
+          print("Username is unique. Proceeding with user creation...");
+
+          // Upload avatar if provided
+          String? avatarUrl;
+          if (_avatarImage != null) {
+            final storageRef = _storage.ref().child('avatars/$uid');
+            await storageRef.putFile(_avatarImage!);
+            avatarUrl = await storageRef.getDownloadURL();
+            print("Avatar uploaded to: $avatarUrl");
+          }
+
+          // Save user details
+          await _userRef.child(uid).set({
+            'username': username,
+            'email': _auth.currentUser?.email ?? '',
+            'avatarUrl': avatarUrl ?? '',
+          });
+
+          print("User created successfully with username: $username");
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          // Handle username already taken
+          print("Username is already taken.");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Username is already taken.')),
+          );
+        }
       } catch (e) {
         print("Error creating user: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating user: $e')),
+        );
       }
     } else {
       print("Form validation failed. Username is required.");
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
