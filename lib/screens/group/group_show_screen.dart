@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../../models/user.dart';
+import '../../models/user_notification.dart';
 
 class GroupShowScreen extends StatelessWidget {
   const GroupShowScreen({Key? key}) : super(key: key);
@@ -62,14 +63,13 @@ class GroupShowScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _sendInvite(
-    BuildContext context, String groupId, String username) async {
+  Future<void> _sendInvite(BuildContext context, String groupId, String username) async {
+    String groupName = 'Unnamed Group'; // Declare groupName at the beginning
+
     try {
       // Check if the username exists
       final userExists = await User.usernameExists(username);
-
       if (!userExists) {
-        // Show snackbar if user doesn't exist
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('User "$username" does not exist.')),
         );
@@ -82,6 +82,16 @@ class GroupShowScreen extends StatelessWidget {
       final userSnapshot = await userRef.get();
       final userId = userSnapshot.value as String;
 
+      // Fetch the group name
+      final DatabaseReference groupRef =
+          FirebaseDatabase.instance.ref('groups/$groupId');
+      final groupSnapshot = await groupRef.get();
+      final groupData = groupSnapshot.value as Map<dynamic, dynamic>?;
+
+      if (groupData != null && groupData.containsKey('name')) {
+        groupName = groupData['name']; // Assign group name
+      }
+
       // Add the user to the group's invitees list
       final DatabaseReference groupInviteesRef =
           FirebaseDatabase.instance.ref('groups/$groupId/invitees/$userId');
@@ -90,6 +100,12 @@ class GroupShowScreen extends StatelessWidget {
 
       await groupInviteesRef.set(true);
       await userInvitesRef.set(true);
+
+      // Send notification with group name
+      await UserNotification.createUserNotification(
+        userId,
+        'You have been invited to the group "$groupName".',
+      );
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,6 +118,7 @@ class GroupShowScreen extends StatelessWidget {
       );
     }
   }
+
   
   @override
   Widget build(BuildContext context) {
