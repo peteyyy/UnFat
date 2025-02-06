@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:firebase_storage/firebase_storage.dart';
 
 
 class Group {
@@ -8,6 +11,7 @@ class Group {
   final String admin;
   final List<String> members;
   final List<String> invitees;
+  final String avatarUrl;
 
   Group({
     required this.id,
@@ -15,6 +19,7 @@ class Group {
     required this.admin,
     required this.members,
     required this.invitees,
+    required this.avatarUrl,
   });
 
   // Factory to create Group from Realtime Database data
@@ -27,6 +32,7 @@ class Group {
       admin: data['admin'] ?? 'Unknown Admin',
       members: membersMap.keys.map((key) => key.toString()).toList(),
       invitees: inviteesMap.keys.map((key) => key.toString()).toList(),
+      avatarUrl: data['avatarUrl'] ?? '',
     );
   }
 
@@ -37,6 +43,7 @@ class Group {
       'name': name,
       'admin': admin,
       'members': membersMap,
+      'avatarUrl': avatarUrl,
     };
   }
 
@@ -165,5 +172,27 @@ class Group {
     }
     return groups;
   }
+
+  Future<int> getMemberCount() async {
+    final snapshot = await FirebaseDatabase.instance.ref('groups/$id/members').get();
+    if (snapshot.exists && snapshot.value is Map) {
+      return (snapshot.value as Map).length;
+    }
+    return 0;
+  }
+
+  Future<void> updateAvatar(String groupId, File avatarFile) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref('group_avatars/$groupId');
+      await storageRef.putFile(avatarFile);
+
+      final avatarUrl = await storageRef.getDownloadURL();
+      final groupRef = FirebaseDatabase.instance.ref('groups/$groupId');
+      await groupRef.update({'avatarUrl': avatarUrl});
+    } catch (e) {
+      print('Error updating group avatar: $e');
+    }
+  }
+
 
 }

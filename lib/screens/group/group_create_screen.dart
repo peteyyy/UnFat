@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebaseAuth; // Alias for Firebase Auth
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebaseAuth;
 import 'package:firebase_database/firebase_database.dart';
-import '../../models/user.dart'; // Your custom User model
+import 'package:firebase_storage/firebase_storage.dart';
+import '../../models/user.dart';
 import '../../models/user_notification.dart';
 
 class GroupCreateScreen extends StatefulWidget {
@@ -14,8 +18,8 @@ class GroupCreateScreen extends StatefulWidget {
 class _GroupCreateScreenState extends State<GroupCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  File? _avatarImage;
 
-  // Reference to the Realtime Database
   final DatabaseReference _databaseRef =
       FirebaseDatabase.instance.ref('groups');
 
@@ -25,79 +29,88 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     super.dispose();
   }
 
-Future<void> _createGroup() async {
-  print("Create group initiated");
-  final currentUser = firebaseAuth.FirebaseAuth.instance.currentUser;
+  Future<void> _pickAvatar() async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
 
-  if (currentUser == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('You must be signed in to create a group!'),
-      ),
-    );
-    return;
+    if (pickedFile != null) {
+      setState(() {
+        _avatarImage = File(pickedFile.path);
+      });
+    }
   }
 
-  if (_formKey.currentState!.validate()) {
-    try {
-      print("Form validated. Adding group to Realtime Database...");
+  Future<void> _createGroup() async {
+    final currentUser = firebaseAuth.FirebaseAuth.instance.currentUser;
 
-      // Generate a unique key for the new group
-      final groupKey = _databaseRef.push().key;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be signed in to create a group!'),
+        ),
+      );
+      return;
+    }
 
-      if (groupKey == null) {
-        throw Exception("Failed to generate group key");
-      }
+    if (_formKey.currentState!.validate()) {
+      try {
+        final groupKey = _databaseRef.push().key;
 
-      // Add the group to the Realtime Database
-      await _databaseRef.child(groupKey).set({
-        'name': _nameController.text.trim(),
-        'admin': currentUser.uid,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+        if (groupKey == null) {
+          throw Exception("Failed to generate group key");
+        }
 
-      print("Group successfully added to Realtime Database with ID: $groupKey");
+        String? avatarUrl;
+        if (_avatarImage != null) {
+          final storageRef =
+              FirebaseStorage.instance.ref('group_avatars/$groupKey');
+          await storageRef.putFile(_avatarImage!);
+          avatarUrl = await storageRef.getDownloadURL();
+        }
 
-      // Print before calling joinGroup
-      print("Calling joinGroup for user ${currentUser.uid}");
+        await _databaseRef.child(groupKey).set({
+          'name': _nameController.text.trim(),
+          'admin': currentUser.uid,
+          'createdAt': DateTime.now().toIso8601String(),
+          'avatarUrl': avatarUrl ?? '',
+        });
 
-      // Call joinGroup to add the current user to the group
-      await User.fromId(currentUser.uid).joinGroup(groupKey);
+        await User.fromId(currentUser.uid).joinGroup(groupKey);
 
+        final message = "You created a new group: ${_nameController.text.trim()}";
+        await UserNotification.createUserNotification(
+            currentUser.uid, message);
 
-      print("User ${currentUser.uid} successfully joined group $groupKey");
+        if (mounted) {
+          _nameController.clear();
+          setState(() => _avatarImage = null);
 
-      // Create a notification for the user who created the group
-      final message = "You created a new group: ${_nameController.text.trim()}";
-      await UserNotification.createUserNotification(currentUser.uid, message);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Group created successfully!')),
+          );
 
-      print("Notification created for admin");
-
-      if (mounted) {
-        // Clear the input field
-        _nameController.clear();
-
-        // Show the SnackBar
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Group created successfully!')),
-        );
-
-        // Navigate back to GroupScreen
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      print("Error occurred: $e");
-      if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        print("Error occurred: $e");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error creating group: $e')),
         );
       }
     }
-  } else {
-    print("Form validation failed");
   }
-}
 
+  Widget _buildAvatarPicker() {
+    return GestureDetector(
+      onTap: _pickAvatar, // Opens image picker when tapped
+      child: CircleAvatar(
+        radius: 50,
+        backgroundImage: _avatarImage != null
+            ? FileImage(_avatarImage!) as ImageProvider
+            : const AssetImage('assets/default_avatar.jpeg'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +123,10 @@ Future<void> _createGroup() async {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              _buildAvatarPicker(), // Show avatar at the top
+              const SizedBox(height: 16.0),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(

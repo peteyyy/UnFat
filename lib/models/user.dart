@@ -142,19 +142,33 @@ class User {
     await userRef.update({'username': newUsername});
   }
 
-Future<void> updateAvatar(File imageFile) async {
-  try {
-    final storageRef = FirebaseStorage.instance.ref('avatars/$uid');
-    await storageRef.putFile(imageFile);
+  Future<void> updateAvatar(File imageFile) async {
+    try {
+      final storageRef = FirebaseStorage.instance.ref('avatars/$uid');
+      await storageRef.putFile(imageFile);
 
-    final avatarUrl = await storageRef.getDownloadURL();
-    final userRef = FirebaseDatabase.instance.ref('users/$uid');
-    await userRef.update({'avatarUrl': avatarUrl});
+      final avatarUrl = await storageRef.getDownloadURL();
+      final userRef = FirebaseDatabase.instance.ref('users/$uid');
+      await userRef.update({'avatarUrl': avatarUrl});
 
-    print('Avatar updated successfully: $avatarUrl');
-  } catch (e) {
-    print('Error updating avatar: $e');
+      print('Avatar updated successfully: $avatarUrl');
+    } catch (e) {
+      print('Error updating avatar: $e');
+    }
   }
+
+  static Future<String?> getAvatarUrl(String userId) async {
+    final DatabaseReference usersRef = FirebaseDatabase.instance.ref('users/$userId/avatarUrl');
+
+    try {
+      final snapshot = await usersRef.get();
+      if (snapshot.exists) {
+        return snapshot.value as String?;
+      }
+    } catch (e) {
+      print('Error fetching avatar URL for user $userId: $e');
+    }
+    return null;
 }
 
 }

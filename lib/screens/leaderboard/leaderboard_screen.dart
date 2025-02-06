@@ -75,23 +75,25 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           if (_groups.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: DropdownButton<Group>(
-                value: _selectedGroup,
-                items: _groups.map((Group group) {
-                  return DropdownMenuItem<Group>(
-                    value: group,
-                    child: Text(group.name),
-                  );
-                }).toList(),
-                onChanged: (Group? newGroup) {
-                  if (newGroup != null) {
-                    setState(() => _selectedGroup = newGroup);
-                    _loadLeaderboard(newGroup);
-                  }
-                },
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: DropdownButton<Group>(
+                  value: _selectedGroup,
+                  items: _groups.map((Group group) {
+                    return DropdownMenuItem<Group>(
+                      value: group,
+                      child: Text(group.name),
+                    );
+                  }).toList(),
+                  onChanged: (Group? newGroup) {
+                    if (newGroup != null) {
+                      setState(() => _selectedGroup = newGroup);
+                      _loadLeaderboard(newGroup);
+                    }
+                  },
+                ),
               ),
             ),
-
           const SizedBox(height: 10),
 
           // Leaderboard Table
@@ -105,21 +107,36 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       final isEvenRow = index % 2 == 0;
 
                       return Container(
-                        color: isEvenRow ? Colors.grey[200] : Colors.white, // Alternating colors
+                        color: isEvenRow ? Colors.grey[200] : Colors.white, // Alternating row colors
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
                         child: FutureBuilder<String>(
                           future: model.User.getUsername(entry.key),
-                          builder: (context, snapshot) {
-                            String username = snapshot.connectionState == ConnectionState.done
-                                ? snapshot.data ?? "Unknown User"
+                          builder: (context, usernameSnapshot) {
+                            String username = usernameSnapshot.connectionState == ConnectionState.done
+                                ? usernameSnapshot.data ?? "Unknown User"
                                 : "Loading...";
 
-                            return ListTile(
-                              title: Text(username),
-                              subtitle: Text("Points: ${entry.value['points']} | Streak: ${entry.value['streak']}"),
-                              trailing: Text(
-                                "${entry.value['points']} pts",
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                            return FutureBuilder<String?>(
+                              future: model.User.getAvatarUrl(entry.key),
+                              builder: (context, avatarSnapshot) {
+                                String? avatarUrl = avatarSnapshot.data;
+
+                                return ListTile(
+                                  leading: 
+                                    CircleAvatar(
+                                      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                                          ? NetworkImage(avatarUrl) as ImageProvider
+                                          : const AssetImage('assets/default_avatar.jpeg'),
+                                      radius: 24,
+                                    ),
+                                  title: Text(username),
+                                  subtitle: Text("Points: ${entry.value['points']} | Streak: ${entry.value['streak']}"),
+                                  trailing: Text(
+                                    "${entry.value['points']} pts",
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -127,6 +144,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     },
                   ),
           ),
+
 
         ],
       ),

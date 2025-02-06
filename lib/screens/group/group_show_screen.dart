@@ -50,11 +50,21 @@ class GroupShowScreen extends StatelessWidget {
 
     if (shouldDelete == true) {
       try {
-        await _databaseRef.remove();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Group deleted successfully!')),
+        final shouldDelete = await _showConfirmationDialog(
+          context,
+          title: 'Confirm Deletion',
+          content: 'Are you sure you want to delete this group?',
+          confirmText: 'Delete',
         );
-        Navigator.pop(context);
+
+        if (shouldDelete == true) {
+          await _databaseRef.remove();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Group deleted successfully!')),
+          );
+          Navigator.pop(context);
+        }
+
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error deleting group: $e')),
@@ -62,6 +72,35 @@ class GroupShowScreen extends StatelessWidget {
       }
     }
   }
+
+  Future<bool?> _showConfirmationDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+    required String confirmText,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red), // Sets the text color to red
+              child: Text(confirmText),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   Future<void> _sendInvite(BuildContext context, String groupId, String username) async {
     String groupName = 'Unnamed Group'; // Declare groupName at the beginning
@@ -283,25 +322,59 @@ class GroupShowScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-                
                 Center(
                   child: currentUser != null && currentUser.uid == adminUid
-                      ? ElevatedButton(
-                          onPressed: () => _deleteGroup(context, groupId, adminUid),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                      ? GestureDetector(
+                          onTap: () async {
+                            final shouldDelete = await _showConfirmationDialog(
+                              context,
+                              title: "Confirm Deletion",
+                              content: "Are you sure you want to delete this group?",
+                              confirmText: "Delete",
+                            );
+                            if (shouldDelete == true) {
+                              _deleteGroup(context, groupId, adminUid);
+                            }
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text(
+                              "Delete Group",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                           ),
-                          child: const Text('Delete Group'),
                         )
-                      : ElevatedButton(
-                          onPressed: () => _leaveGroup(context, groupId),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey,
+                      : GestureDetector(
+                          onTap: () async {
+                            final shouldLeave = await _showConfirmationDialog(
+                              context,
+                              title: "Confirm Leave",
+                              content: "Are you sure you want to leave this group?",
+                              confirmText: "Leave",
+                            );
+                            if (shouldLeave == true) {
+                              _leaveGroup(context, groupId);
+                            }
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text(
+                              "Leave Group",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                           ),
-                          child: const Text('Leave Group'),
                         ),
                 ),
               ],
+
             ),
           );
         },
@@ -333,15 +406,24 @@ class GroupShowScreen extends StatelessWidget {
     final userId = currentUser.uid;
 
     try {
-      // Remove user from group's members list
-      await FirebaseDatabase.instance.ref('groups/$groupId/members/$userId').remove();
-
-      // Remove group from user's joined groups list
-      await FirebaseDatabase.instance.ref('users/$userId/groups/$groupId').remove();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You have left the group.')),
+      final shouldLeave = await _showConfirmationDialog(
+        context,
+        title: 'Leave Group',
+        content: 'Are you sure you want to leave this group?',
+        confirmText: 'Leave',
       );
+
+      if (shouldLeave == true) {
+        await FirebaseDatabase.instance.ref('groups/$groupId/members/$userId').remove();
+        await FirebaseDatabase.instance.ref('users/$userId/groups/$groupId').remove();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You have left the group.')),
+        );
+
+        Navigator.pop(context);
+      }
+
 
       Navigator.pop(context); // Return to previous screen
     } catch (e) {

@@ -28,7 +28,7 @@ class _GroupScreenState extends State<GroupScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Groups')),
+      appBar: AppBar(title: const Text('')),
       body: StreamBuilder<DatabaseEvent>(
         stream: _userRef.child(currentUser.uid).onValue,
         builder: (context, snapshot) {
@@ -141,7 +141,15 @@ class _GroupScreenState extends State<GroupScreen> {
 
         return ListTile(
           title: Text(group.name),
-          subtitle: Text('Admin: $adminUsername'),
+          subtitle: FutureBuilder<int>(
+            future: group.getMemberCount(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Text('Members: Loading...');
+              }
+              return Text('Members: ${snapshot.data ?? 0}');
+            },
+          ),
           trailing: isInvited
               ? Row(
                   mainAxisSize: MainAxisSize.min,

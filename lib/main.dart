@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'UnFat',
+      title: 'Fit League',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthGate(),
-        '/home': (context) => const MyHomePage(title: 'UnFat'),
+        '/home': (context) => const MyHomePage(title: 'Fit League'),
         '/user_create': (context) => const UserCreateScreen(),
         '/group_screen': (context) => const GroupScreen(),
         '/group_create': (context) => const GroupCreateScreen(),
@@ -88,7 +88,7 @@ class AuthGate extends StatelessWidget {
               }
 
               // Load the main home screen if profile is complete
-              return const MyHomePage(title: 'UnFat');
+              return const MyHomePage(title: 'Fit League');
             },
           );
         } else {

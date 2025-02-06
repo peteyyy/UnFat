@@ -56,11 +56,9 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
             .child(username)
             .runTransaction((data) {
           if (data != null) {
-            // Username already exists
             return Transaction.abort();
           }
-          // Username doesn't exist, allow the write
-          return Transaction.success(uid); // Wrap the value in Transaction.success
+          return Transaction.success(uid);
         });
 
         if (result.committed) {
@@ -85,7 +83,6 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
           print("User created successfully with username: $username");
           Navigator.pushReplacementNamed(context, '/home');
         } else {
-          // Handle username already taken
           print("Username is already taken.");
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Username is already taken.')),
@@ -102,7 +99,17 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
     }
   }
 
-
+  Widget _buildAvatarPicker() {
+    return GestureDetector(
+      onTap: _pickAvatar,
+      child: CircleAvatar(
+        radius: 50,
+        backgroundImage: _avatarImage != null
+            ? FileImage(_avatarImage!) as ImageProvider
+            : const AssetImage('assets/default_avatar.jpeg'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,8 +122,10 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              _buildAvatarPicker(), // Show avatar at the top
+              const SizedBox(height: 16.0),
               TextFormField(
                 controller: _usernameController,
                 decoration: const InputDecoration(
@@ -129,21 +138,6 @@ class _UserCreateScreenState extends State<UserCreateScreen> {
                   }
                   return null;
                 },
-              ),
-              const SizedBox(height: 16.0),
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: _pickAvatar,
-                    child: const Text('Pick Avatar'),
-                  ),
-                  const SizedBox(width: 16.0),
-                  if (_avatarImage != null)
-                    CircleAvatar(
-                      backgroundImage: FileImage(_avatarImage!),
-                      radius: 30,
-                    ),
-                ],
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(

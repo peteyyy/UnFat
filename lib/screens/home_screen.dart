@@ -56,19 +56,19 @@ class _MyHomePageState extends State<MyHomePage> {
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
-            label: 'Leaderboard',
+            label: '',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.groups),
-            label: 'Groups',
+            label: '',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),
-            label: 'Check In',
+            label: '',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'Settings',
+            label: '',
           ),
           BottomNavigationBarItem(
             icon: StreamBuilder<int>(
@@ -106,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-            label: 'Notifications',
+            label: '',
           ),
         ],
         currentIndex: _selectedIndex,
