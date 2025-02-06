@@ -1,4 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
+
 
 class User {
   final String uid;
@@ -6,6 +10,7 @@ class User {
   final String username;
   final List<String> groups;
   final List<String> invitedGroups;
+  final String avatarUrl;
 
   User({
     required this.uid,
@@ -13,6 +18,7 @@ class User {
     required this.username,
     required this.groups,
     required this.invitedGroups,
+    required this.avatarUrl,
   });
 
   // Convert Realtime Database entry to User model
@@ -23,6 +29,7 @@ class User {
       uid: uid,
       email: data['email'] ?? '',
       username: data['username'] ?? '',
+      avatarUrl: data['avatarUrl'] ?? '',
       groups: groupsMap.keys.map((key) => key.toString()).toList(),
       invitedGroups: invitedGroupsMap.keys.map((key) => key.toString()).toList(),
       
@@ -63,6 +70,7 @@ class User {
       username: '',
       groups: [],
       invitedGroups: [],
+      avatarUrl: '',
     );
   }
 
@@ -106,4 +114,47 @@ class User {
     await userInvitesRef.remove();
     await groupInviteesRef.remove();
   }
+  
+  static Future<User?> fetchUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    final DatabaseReference userRef = FirebaseDatabase.instance.ref('users/${user.uid}');
+    final snapshot = await userRef.get();
+
+    if (snapshot.exists) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      return User(
+        uid: user.uid,
+        email: data['email'] ?? '',
+        username: data['username'] ?? 'Unknown',
+        avatarUrl: data['avatarUrl'] ?? '',
+        groups: (data['groups'] as Map<dynamic, dynamic>?)?.keys.map((e) => e.toString()).toList() ?? [],
+        invitedGroups: (data['invited_groups'] as Map<dynamic, dynamic>?)?.keys.map((e) => e.toString()).toList() ?? [],
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> updateUsername(String newUsername) async {
+    final DatabaseReference userRef = FirebaseDatabase.instance.ref('users/$uid');
+    await userRef.update({'username': newUsername});
+  }
+
+Future<void> updateAvatar(File imageFile) async {
+  try {
+    final storageRef = FirebaseStorage.instance.ref('avatars/$uid');
+    await storageRef.putFile(imageFile);
+
+    final avatarUrl = await storageRef.getDownloadURL();
+    final userRef = FirebaseDatabase.instance.ref('users/$uid');
+    await userRef.update({'avatarUrl': avatarUrl});
+
+    print('Avatar updated successfully: $avatarUrl');
+  } catch (e) {
+    print('Error updating avatar: $e');
+  }
+}
+
 }

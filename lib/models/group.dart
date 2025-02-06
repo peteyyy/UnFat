@@ -1,4 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
+
 
 class Group {
   final String id;
@@ -62,4 +64,106 @@ class Group {
     final DatabaseReference userInvitesRef = FirebaseDatabase.instance.ref('users/$userId/invited_groups/$id');
     await userInvitesRef.remove();
   }
+
+  // Referring to user/group data
+  Future<void> updateUserStats(String userId, int points, int streak) async {
+    final DatabaseReference userStatsRef =
+        FirebaseDatabase.instance.ref('groups/$id/user_data/$userId');
+
+    await userStatsRef.set({
+      "points": points,
+      "streak": streak
+    });
+  }
+
+  Future<void> incrementUserStats(String userId, {int points = 0, int streak = 0}) async {
+    final DatabaseReference userStatsRef =
+        FirebaseDatabase.instance.ref('groups/$id/user_data/$userId');
+
+    final snapshot = await userStatsRef.get();
+    if (snapshot.exists) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      int currentPoints = data["points"] ?? 0;
+      int currentStreak = data["streak"] ?? 0;
+
+      await userStatsRef.update({
+        "points": currentPoints + points,
+        "streak": currentStreak + streak
+      });
+    } else {
+      await userStatsRef.set({
+        "points": points,
+        "streak": streak
+      });
+    }
+  }
+
+  Future<Map<String, int>> getUserStats(String userId) async {
+    final DatabaseReference userStatsRef =
+        FirebaseDatabase.instance.ref('groups/$id/user_data/$userId');
+
+    final snapshot = await userStatsRef.get();
+    if (snapshot.exists) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      return {
+        "points": data["points"] ?? 0,
+        "streak": data["streak"] ?? 0
+      };
+    }
+    return {"points": 0, "streak": 0};
+  }
+
+  Future<Map<String, Map<String, int>>> getAllUserStats() async {
+    final DatabaseReference groupStatsRef =
+        FirebaseDatabase.instance.ref('groups/$id/user_data');
+
+    final snapshot = await groupStatsRef.get();
+    if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+
+      // Ensure proper type conversion
+      final sortedEntries = data.entries
+          .where((entry) => entry.value is Map<dynamic, dynamic>) // Filter invalid entries
+          .map((entry) {
+            final stats = entry.value as Map<dynamic, dynamic>;
+            return MapEntry(entry.key.toString(), {
+              "points": (stats["points"] as int?) ?? 0,
+              "streak": (stats["streak"] as int?) ?? 0
+            });
+          })
+          .toList();
+
+      // Sort by points in descending order
+      sortedEntries.sort((a, b) => b.value['points']!.compareTo(a.value['points']!));
+
+      return Map.fromEntries(sortedEntries);
+    }
+
+    return {}; // Return empty map if no data exists
+  }
+
+
+
+  // Added method to fetch user's groups dynamically
+  static Future<List<Group>> fetchUserGroups() async {
+    final user = auth.FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    final DatabaseReference userRef =
+        FirebaseDatabase.instance.ref('users/${user.uid}/groups');
+    final snapshot = await userRef.get();
+
+    if (!snapshot.exists) return [];
+
+    List<Group> groups = [];
+    for (var entry in (snapshot.value as Map<dynamic, dynamic>).keys) {
+      final groupSnapshot =
+          await FirebaseDatabase.instance.ref('groups/$entry').get();
+      if (groupSnapshot.exists) {
+        groups.add(Group.fromRealtime(entry, groupSnapshot.value as Map));
+      }
+    }
+    return groups;
+  }
+
 }

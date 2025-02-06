@@ -9,7 +9,11 @@ import 'screens/group/group_screen.dart';
 import 'screens/group/group_create_screen.dart';
 import 'screens/group/group_show_screen.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'screens/check_in/check_in_screen.dart';
 import 'screens/user_notification/user_notification_screen.dart';
+import 'screens/leaderboard/leaderboard_screen.dart';
+import 'screens/settings/settings_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +42,9 @@ class MyApp extends StatelessWidget {
         '/group_screen': (context) => const GroupScreen(),
         '/group_create': (context) => const GroupCreateScreen(),
         '/group_show': (context) => const GroupShowScreen(),
+        '/check_in': (context) => const CheckInScreen(),
+        '/leaderboard': (context) => const LeaderboardScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

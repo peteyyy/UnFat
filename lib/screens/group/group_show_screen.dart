@@ -283,6 +283,7 @@ class GroupShowScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+                
                 Center(
                   child: currentUser != null && currentUser.uid == adminUid
                       ? ElevatedButton(

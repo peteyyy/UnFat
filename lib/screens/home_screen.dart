@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_database/firebase_database.dart';
+import 'leaderboard/leaderboard_screen.dart';
 import 'group/group_screen.dart';
+import 'check_in/check_in_screen.dart';
+import 'settings/settings_screen.dart';
 import '../models/user_notification.dart'; // Import UserNotification model
 import 'user_notification/user_notification_screen.dart';
 
@@ -19,10 +22,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // Define the pages for each tab
   static final List<Widget> _pages = <Widget>[
-    const Center(child: Text('Leaderboard Page')),
-    const Center(child: Text('Camera Page')),
-    const Center(child: Text('Settings Page')),
+    const LeaderboardScreen(),
     const GroupScreen(), // Link to the GroupScreen
+    const CheckInScreen(),
+    const SettingsScreen(),
     const UserNotificationScreen(), // Notifications Screen
   ];
 
@@ -53,7 +56,11 @@ class _MyHomePageState extends State<MyHomePage> {
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
-            label: 'Fattys',
+            label: 'Leaderboard',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.groups),
+            label: 'Groups',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),
@@ -62,10 +69,6 @@ class _MyHomePageState extends State<MyHomePage> {
           const BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.groups),
-            label: 'Groups',
           ),
           BottomNavigationBarItem(
             icon: StreamBuilder<int>(
