@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../../models/user.dart';
 import '../../models/user_notification.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
 
 class GroupShowScreen extends StatelessWidget {
   const GroupShowScreen({Key? key}) : super(key: key);
@@ -101,12 +105,39 @@ class GroupShowScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _updateGroupAvatar(BuildContext context, String groupId) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-  Future<void> _sendInvite(BuildContext context, String groupId, String username) async {
-    String groupName = 'Unnamed Group'; // Declare groupName at the beginning
+    if (pickedFile == null) return;
 
     try {
-      // Check if the username exists
+      File imageFile = File(pickedFile.path);
+      final storageRef = FirebaseStorage.instance.ref('group_avatars/$groupId');
+      await storageRef.putFile(imageFile);
+      final avatarUrl = await storageRef.getDownloadURL();
+
+      await FirebaseDatabase.instance.ref('groups/$groupId').update({
+        'avatarUrl': avatarUrl,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group avatar updated successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating avatar: $e')),
+      );
+    }
+  }
+
+
+
+
+  Future<void> _sendInvite(BuildContext context, String groupId, String username) async {
+    String groupName = 'Unnamed Group'; 
+
+    try {
       final userExists = await User.usernameExists(username);
       if (!userExists) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,23 +146,20 @@ class GroupShowScreen extends StatelessWidget {
         return;
       }
 
-      // Fetch the user ID from the username mapping
       final DatabaseReference userRef =
           FirebaseDatabase.instance.ref('usernames/$username');
       final userSnapshot = await userRef.get();
       final userId = userSnapshot.value as String;
 
-      // Fetch the group name
       final DatabaseReference groupRef =
           FirebaseDatabase.instance.ref('groups/$groupId');
       final groupSnapshot = await groupRef.get();
       final groupData = groupSnapshot.value as Map<dynamic, dynamic>?;
 
       if (groupData != null && groupData.containsKey('name')) {
-        groupName = groupData['name']; // Assign group name
+        groupName = groupData['name'];
       }
 
-      // Add the user to the group's invitees list
       final DatabaseReference groupInviteesRef =
           FirebaseDatabase.instance.ref('groups/$groupId/invitees/$userId');
       final DatabaseReference userInvitesRef =
@@ -140,18 +168,15 @@ class GroupShowScreen extends StatelessWidget {
       await groupInviteesRef.set(true);
       await userInvitesRef.set(true);
 
-      // Send notification with group name
       await UserNotification.createUserNotification(
         userId,
         'You have been invited to the group "$groupName".',
       );
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Invitation sent to "$username".')),
       );
     } catch (e) {
-      // Handle errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sending invite: $e')),
       );
@@ -185,7 +210,19 @@ class GroupShowScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Group Details'),
+        title: FutureBuilder<DataSnapshot>(
+          future: groupRef.get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text('Loading...');
+            }
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Text('Group');
+            }
+            final groupData = snapshot.data!.value as Map<dynamic, dynamic>;
+            return Text(groupData['name'] ?? 'Group');
+          },
+        ),
       ),
       body: FutureBuilder<DataSnapshot>(
         future: groupRef.get(),
@@ -213,11 +250,35 @@ class GroupShowScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
-                  child: Text(
-                    groupName,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+                      if (pickedFile != null) {
+                        File imageFile = File(pickedFile.path);
+                        await _updateGroupAvatar(context, groupId); // ✅ Pass context
+                      }
+                    },
+
+                    child: FutureBuilder<DataSnapshot>(
+                      future: groupRef.get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const CircleAvatar(radius: 50, child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
+                          return const CircleAvatar(radius: 50, backgroundImage: AssetImage("assets/default_avatar.jpeg"));
+                        }
+
+                        final groupData = snapshot.data!.value as Map<dynamic, dynamic>;
+                        final avatarUrl = groupData['avatarUrl'] as String?;
+
+                        return CircleAvatar(
+                          radius: 50,
+                          backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                              ? NetworkImage(avatarUrl) as ImageProvider
+                              : const AssetImage("assets/default_avatar.jpeg"),
+                        );
+                      },
                     ),
                   ),
                 ),
